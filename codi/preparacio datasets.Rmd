@@ -1,0 +1,87 @@
+---
+title: "Visualització de dades - PAC3"
+author: "Daniel Vilaseca"
+date: "6/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(tidyquant)
+library(tidyverse)
+```
+
+```{r}
+# Primer carreguem les dades dels dos datasets:
+data_world <- read.csv('C:/PRAC2/daily number of new reported COVID-19 cases and deaths worldwide.csv',stringsAsFactors = FALSE)
+data_europe <- read.csv('C:/PRAC2/daily number of new reported COVID-19 cases and deaths by EU EEA country.csv', stringsAsFactors = FALSE)
+
+# Analitzem les característiques globals dels datasets:
+str(data_world)
+head(data_world)
+```
+```{r}
+str(data_europe)
+```
+
+Fem els canvis de tipus de variable necessaris:
+```{r}
+# Canvis al conjunt de dades data_world:
+data_world$dateRep <- as.Date(data_world$dateRep, "%d/%m/%Y")
+data_world$day <- as.character(data_world$day)
+data_world$month <- as.character(data_world$month)
+data_world$year <- as.character(data_world$year)
+str(data_world)
+```
+```{r}
+# Canvis al conjunt de dades data_europe:
+data_europe$dateRep <- as.Date(data_europe$dateRep, "%d/%m/%Y")
+data_europe$day <- as.character(data_europe$day)
+data_europe$month <- as.character(data_europe$month)
+data_europe$year <- as.character(data_europe$year)
+str(data_europe)
+```
+
+Haurem de combinar els dos conjunts de dades en un de sol:
+```{r}
+data_pac <- bind_rows(data_world, data_europe)
+str(data_pac)
+```
+
+Finalment ens queda un conjunt de dades de 13 variables i 63.880 registres, que utilitzarem per fer el gràfic de línies (la combinació ens permet tenir dades per un major període de temps).
+
+A continuació crearé dos nous dataset modificant les dades, per poder generar altres visualitzacions:
+
+Dataset agrupat per país:
+```{r}
+# Prenem com a referència data_world (el dataset "daily number of new reported COVID-19 cases and deaths worldwide"):
+data_world_country <- data_world %>% 
+  group_by(countriesAndTerritories) %>% 
+  summarise(cases = sum(cases), deaths = sum(deaths), Code = unique(countryterritoryCode), acumulat = sum(Cumulative_number_for_14_days_of_COVID.19_cases_per_100000, na.rm = TRUE), popData2019 = unique(popData2019), continentExp = unique(continentExp))
+head(data_world_country)
+```
+
+Ara cada registre del dataset és un país amb el nombre acumulat de casos i morts per Covid, enlloc dels casos i morts diàries.
+
+Dataset on cada dia és una variable i cada fila un país. Cada registre mostra per un país les morts per Covid segons el dia (servirà per fer el gràfic de barres animades):
+```{r}
+data_world_day <- select(data_world, -day, -month, -year, -cases, -geoId, -countryterritoryCode, -popData2019, -continentExp, -Cumulative_number_for_14_days_of_COVID.19_cases_per_100000)
+data_world_day <- data_world_day %>% pivot_wider(names_from = dateRep, values_from = deaths)
+```
+
+Convertim els dataframes a format csv:
+```{r}
+# els dos datasets combinats:
+write.csv(data_pac, "C:/PRAC2/dades-diaries-covid.csv", row.names = FALSE)
+# el dataset "daily number of new reported COVID-19 cases and deaths worldwide" netejat
+write.csv(data_world, "C:/PRAC2/data-world-covid.csv", row.names = FALSE)
+# el dataset agrupat per país, amb dades de casos i morts acumulades
+write.csv(data_world_country, "C:/PRAC2/data-country-covid.csv", row.names = FALSE)
+# datset on cada dia és una columna:
+write.csv(data_world_day, "C:/PRAC2/data-day-covid.csv", row.names = FALSE)
+```
+
